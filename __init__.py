@@ -20,22 +20,62 @@ from mycroft.skills.core import MycroftSkill
 from mycroft.util.log import getLogger
 from os.path import dirname
 from py_irsend import irsend
+from subprocess import CalledProcessError
 
 __author__ = 'ChristopherRogers1991'
 logger = getLogger(__name__)
 
 
+def intent_handler(function):
+    def new_fnction(self, message):
+        try:
+            function(self, message)
+        except CalledProcessError as e:
+            logger.exception(e.message)
+            self.speak_dialog('error')
+        except OSError as e:
+            logger.exception(e.message)
+            self.speak_dialog('not.installed')
+    return new_fnction
+
+
 class IrsendSkill(MycroftSkill):
     def __init__(self):
+        super(IrsendSkill, self).__init__(name="IrsendSkill")
         self.remote_name_table = dict()
         self.code_name_table = dict()
-        super(IrsendSkill, self).__init__(name="IrsendSkill")
+        self.address = self.config.get('address')
+        self.device = self.config.get('device')
 
     def initialize(self):
         self.load_data_files(dirname(__file__))
 
-        for remote in irsend.list_remotes():
-            for code in irsend.list_codes(remote):
+        try:
+            self._register_remotes()
+        except OSError:
+            logger.warning('irsend does not appear to be installed.')
+        except CalledProcessError as e:
+            logger.error('Unable to list remotes. Error was: ' + str(e))
+
+        send_code_intent = IntentBuilder("IrsendIntent")\
+            .require("SendKeyword")\
+            .require("Remote")\
+            .require("Code")\
+            .optionally("Number")\
+            .build()
+
+        self.register_intent(send_code_intent,
+                             self.handle_send_code_intent)
+
+        register_remotes_intent = IntentBuilder("RegisterRemotesIntent")\
+            .require('RegisterKeyword').build()
+
+        self.register_intent(register_remotes_intent,
+                             self.handle_register_remotes_intent)
+
+    def _register_remotes(self):
+        for remote in irsend.list_remotes(self.device, self.address):
+            for code in irsend.list_codes(remote, self.device, self.address):
                 name = code.lower().replace('_', ' ')
                 self.code_name_table[name] = code
                 self.register_vocabulary(name, 'Code')
@@ -44,26 +84,20 @@ class IrsendSkill(MycroftSkill):
             self.remote_name_table[name] = remote
             self.register_vocabulary(name, 'Remote')
 
-        send_code_intent = IntentBuilder("IrsendIntent")\
-            .require("SendKeyword")\
-            .require("Remote") \
-            .require("Code")\
-            .build()
+    @intent_handler
+    def handle_register_remotes_intent(self, message):
+        self._register_remotes()
 
-        self.register_intent(send_code_intent,
-                             self.handle_send_code_intent)
-
+    @intent_handler
     def handle_send_code_intent(self, message):
         name = message.metadata.get("Remote")
         remote = self.remote_name_table[name]
 
         name = message.metadata.get("Code")
         code = self.code_name_table[name]
-        try:
-            irsend.send_once(remote, [code])
-        except Exception as e:
-            logger.exception(type(e) + ' ' + e.message)
-            self.speak("Error sending I R signal.")
+
+        count = message.metadata.get("Number")
+        irsend.send_once(remote, [code], count or 1, self.device, self.address)
 
     def stop(self):
         pass
