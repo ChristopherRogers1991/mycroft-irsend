@@ -38,7 +38,7 @@ def intent_handler(function):
         except OSError as e:
             logger.exception(e.message)
             self.speak_dialog('not.installed')
-    return new_fnction
+    return new_function
 
 
 class IrsendSkill(MycroftSkill):
