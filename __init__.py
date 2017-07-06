@@ -93,7 +93,7 @@ class IrsendSkill(MycroftSkill):
             .build()
 
         self.register_intent(list_codes_intent,
-                             self.handle_list_remotes_intent)
+                             self.handle_list_codes_for_remote_intent)
 
 
     def _register_remotes(self):
