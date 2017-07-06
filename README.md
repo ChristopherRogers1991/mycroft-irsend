@@ -1,6 +1,9 @@
 # mycroft-irsend
 A Mycroft skill for issuing [irsend](http://www.lirc.org/html/irsend.html) commands
 
+## Short Demo
+https://youtu.be/IQ58dPp8f3M
+
 ## Setup
 
 1. Clone this repo into your third party skills folder (the current default is ~/.mycroft/skills, but it used to be ~/.mycroft/third_party_skills; check your global/local mycroft.conf files if you have issues)
