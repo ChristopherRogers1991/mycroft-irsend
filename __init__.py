@@ -29,7 +29,7 @@ logger = getLogger(__name__)
 
 
 def intent_handler(function):
-    def new_fnction(self, message):
+    def new_function(self, message):
         try:
             function(self, message)
         except CalledProcessError as e:
@@ -92,13 +92,13 @@ class IrsendSkill(MycroftSkill):
 
     @intent_handler
     def handle_send_code_intent(self, message):
-        name = message.metadata.get("Remote")
+        name = message.data.get("Remote")
         remote = self.remote_name_table[name]
 
-        name = message.metadata.get("Code")
+        name = message.data.get("Code")
         code = self.code_name_table[name]
 
-        count = message.metadata.get("Number")
+        count = message.data.get("Number")
         irsend.send_once(remote, [code], count or 1, self.device, self.address)
 
     def stop(self):
