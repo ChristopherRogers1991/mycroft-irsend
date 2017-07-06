@@ -23,6 +23,7 @@ from mycroft.util.log import getLogger
 from os.path import dirname
 from py_irsend import irsend
 from subprocess import CalledProcessError
+from collections import defaultdict
 
 __author__ = 'ChristopherRogers1991'
 logger = getLogger(__name__)
@@ -44,8 +45,9 @@ def intent_handler(function):
 class IrsendSkill(MycroftSkill):
     def __init__(self):
         super(IrsendSkill, self).__init__(name="IrsendSkill")
-        self.remote_name_table = dict()
-        self.code_name_table = dict()
+        self.remote_normalized_name_to_real_name_table = dict()
+        self.code_normalized_name_to_real_name_table = dict()
+        self.normalized_remote_to_code_table = defaultdict(list)
         self.address = self.config.get('address')
         self.device = self.config.get('device')
 
@@ -70,33 +72,75 @@ class IrsendSkill(MycroftSkill):
                              self.handle_send_code_intent)
 
         register_remotes_intent = IntentBuilder("RegisterRemotesIntent")\
-            .require('RegisterKeyword').build()
+            .require('RegisterKeyword')\
+            .build()
 
         self.register_intent(register_remotes_intent,
                              self.handle_register_remotes_intent)
 
-    def _register_remotes(self):
-        for remote in irsend.list_remotes(self.device, self.address):
-            for code in irsend.list_codes(remote, self.device, self.address):
-                name = code.lower().replace('_', ' ')
-                self.code_name_table[name] = code
-                self.register_vocabulary(name, 'Code')
+        list_remotes_intent = IntentBuilder("ListRemotesIntent")\
+            .require('AvailableKeyword')\
+            .require('RemotesKeyword')\
+            .build()
 
-            name = remote.lower().replace('_', ' ')
-            self.remote_name_table[name] = remote
-            self.register_vocabulary(name, 'Remote')
+        self.register_intent(list_remotes_intent,
+                             self.handle_list_remotes_intent)
+
+        list_codes_intent = IntentBuilder("ListCodesIntent")\
+            .require('AvailableKeyword') \
+            .require('CodesKeyword')\
+            .require('Remote')\
+            .build()
+
+        self.register_intent(list_codes_intent,
+                             self.handle_list_remotes_intent)
+
+
+    def _register_remotes(self):
+        remotes = irsend.list_remotes(self.device, self.address)
+        for remote in remotes:
+            normalized_remote_name = self.normalize_string(remote)
+            codes = irsend.list_codes(remote, self.device, self.address)
+            for code in codes:
+                normalized_code_name = self.normalize_string(code)
+                self.code_normalized_name_to_real_name_table\
+                    [normalized_code_name] = code
+                self.normalized_remote_to_code_table[normalized_remote_name]\
+                    .append(normalized_code_name)
+                self.register_vocabulary(normalized_code_name, 'Code')
+
+            self.remote_normalized_name_to_real_name_table\
+                [normalized_remote_name] = remote
+
+            self.register_vocabulary(normalized_remote_name, 'Remote')
+
+    def normalize_string(self, string):
+        return string.lower().replace('_', ' ')
 
     @intent_handler
     def handle_register_remotes_intent(self, message):
         self._register_remotes()
 
     @intent_handler
+    def handle_list_remotes_intent(self, message):
+        remotes = ", ".join(self.normalized_remote_to_code_table)
+        data = {'remotes' : remotes}
+        self.speak_dialog('available.remotes', data=data)
+
+    @intent_handler
+    def handle_list_codes_for_remote_intent(self, message):
+        remote_name = message.data.get("Remote")
+        codes = ", ".join(self.normalized_remote_to_code_table[remote_name])
+        data = {'remote' : remote_name, 'codes' : codes}
+        self.speak_dialog('available.codes', data=data)
+
+    @intent_handler
     def handle_send_code_intent(self, message):
         name = message.data.get("Remote")
-        remote = self.remote_name_table[name]
+        remote = self.remote_normalized_name_to_real_name_table[name]
 
         name = message.data.get("Code")
-        code = self.code_name_table[name]
+        code = self.code_normalized_name_to_real_name_table[name]
 
         count = message.data.get("Number")
         irsend.send_once(remote, [code], count or 1, self.device, self.address)
