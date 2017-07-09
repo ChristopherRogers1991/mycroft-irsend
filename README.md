@@ -14,7 +14,7 @@ https://youtu.be/IQ58dPp8f3M
   * `source ~/.virtualenvs/mycroft/bin/activate`
 4. Install the required python libraries
   * `pip install -r requirements.txt`
-5. Add the block below to your mycoft.conf file (`~/.mycroft/mycroft.conf`)
+5. Add the block below to your mycroft.conf file (`~/.mycroft/mycroft.conf`)
 ```
    "IrsendSkill": {
         "address": "<host>:<port>",
