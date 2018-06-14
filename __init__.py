@@ -115,7 +115,7 @@ class IrsendSkill(MycroftSkill):
             self.register_vocabulary(normalized_remote_name, 'Remote')
 
     def normalize_string(self, string):
-        return string.lower().replace('_', ' ')
+        return string.decode().lower().replace('_', ' ')
 
     @intent_handler
     def handle_register_remotes_intent(self, message):
