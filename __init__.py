@@ -140,7 +140,7 @@ class IrsendSkill(MycroftSkill):
         normalized_codes = self.normalized_remote_to_code_table[normalized_remote]
 
         remote = self.remote_normalized_name_to_real_name_table[normalized_remote]
-        utterance = message.data['utterance']
+        utterance = message.data['utterance'].lower()
         extracted_codes = self._extract_codes(normalized_codes, utterance)
 
         count = message.data.get("Number")
