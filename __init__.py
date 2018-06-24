@@ -136,14 +136,31 @@ class IrsendSkill(MycroftSkill):
 
     @intent_handler
     def handle_send_code_intent(self, message):
-        name = message.data.get("Remote")
-        remote = self.remote_normalized_name_to_real_name_table[name]
+        normalized_remote = message.data.get("Remote")
+        normalized_codes = self.normalized_remote_to_code_table[normalized_remote]
 
-        name = message.data.get("Code")
-        code = self.code_normalized_name_to_real_name_table[name]
+        remote = self.remote_normalized_name_to_real_name_table[normalized_remote]
+        utterance = message.data['utterance']
+        extracted_codes = self._extract_codes(normalized_codes, utterance)
 
         count = message.data.get("Number")
-        irsend.send_once(remote, [code], count or 1, self.device, self.address)
+
+        irsend.send_once(remote, extracted_codes, count or 1, self.device, self.address)
+
+    def _extract_codes(self, normalized_codes, string):
+        results = []
+        for code in normalized_codes:
+            count = string.count(code)
+            real_name = self.code_normalized_name_to_real_name_table[code]
+            for i in range(count):
+                results.append(real_name)
+        return results
+
+
+
+
+
+
 
     def stop(self):
         pass
